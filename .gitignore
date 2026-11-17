@@ -1,0 +1,17 @@
+# Local environments and caches
+.venv/
+.venv-sim/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+**/build/
+**/dist/
+*.egg-info/
+*.swp
+*.swo
+*~
+# Raw data is preserved in the versioned, lossless data/archive/ backup.
+data/nero_demos/
+data/nero_aligned_v1/
