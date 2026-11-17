@@ -1,0 +1,10 @@
+# 双臂 NERO / π0 本地客户端；在项目根目录安装。
+# SDK 使用已有本地源码，避免从包索引下载同名包。
+./pyAgxArm
+python-can==4.6.1
+typing_extensions==4.16.0
+wrapt==1.17.3
+packaging==26.3
+numpy==2.2.6
+Pillow==12.3.0
+pyrealsense2==2.59.1.11053

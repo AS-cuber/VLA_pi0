@@ -1,0 +1,199 @@
+{
+  "format_version": 1,
+  "archive": "nero-data.tar.gz",
+  "archive_size": 614933642,
+  "archive_sha256": "6967b23cb99730ab35eef842ad66b19eaa23f33629b0fb3a3c68a0e35c7a9333",
+  "original_file_count": 10451,
+  "original_bytes": 904323812,
+  "directories": [
+    "nero_demos",
+    "nero_aligned_v1"
+  ],
+  "parts": [
+    {
+      "name": "nero-data.tar.gz.part000",
+      "size": 16777216,
+      "sha256": "2ffe10f34b7e7a9f904f3572c6d31acc40972b4081ea99fe581f29c23c012ab9"
+    },
+    {
+      "name": "nero-data.tar.gz.part001",
+      "size": 16777216,
+      "sha256": "cc2599b3dc40653d2083061e3b664c2310f49ef82078951a4006f38031f7e55d"
+    },
+    {
+      "name": "nero-data.tar.gz.part002",
+      "size": 16777216,
+      "sha256": "7cba59b07285593cfe6026e484aeb8d036078f55e5b1c277779b7aa3f8a76e80"
+    },
+    {
+      "name": "nero-data.tar.gz.part003",
+      "size": 16777216,
+      "sha256": "8ff5dfd33aaeaf71ddc7fb1e3b2c106a15bd1530c346932b56f33c4de3f06539"
+    },
+    {
+      "name": "nero-data.tar.gz.part004",
+      "size": 16777216,
+      "sha256": "f0c333a464834513e541f3a0e40907d7b9bd591f7283e405090574dfaa174aea"
+    },
+    {
+      "name": "nero-data.tar.gz.part005",
+      "size": 16777216,
+      "sha256": "bfdd0ab74d896d3da03a36062dc2bbca025d79da697446e884e012b65b4bd151"
+    },
+    {
+      "name": "nero-data.tar.gz.part006",
+      "size": 16777216,
+      "sha256": "baccd957e1765ef9edd0a990241033323378a0c6eb707525b8008a567bafa348"
+    },
+    {
+      "name": "nero-data.tar.gz.part007",
+      "size": 16777216,
+      "sha256": "d1d0a376340cbd61c2ce39e2c17c705be860241fea16c121e4003897f77fca7c"
+    },
+    {
+      "name": "nero-data.tar.gz.part008",
+      "size": 16777216,
+      "sha256": "e388a491e248144308522320a6727ac16950c2f513feade2c50818eeb7599dc9"
+    },
+    {
+      "name": "nero-data.tar.gz.part009",
+      "size": 16777216,
+      "sha256": "a0460824d46264696bcfea6aa295bdc87de853ae22515de9d3591c237f8261ae"
+    },
+    {
+      "name": "nero-data.tar.gz.part010",
+      "size": 16777216,
+      "sha256": "4e5bbfce23cb183a031e7da2c0bd926a69c2ddc863a20ed703ebe318c7e9624b"
+    },
+    {
+      "name": "nero-data.tar.gz.part011",
+      "size": 16777216,
+      "sha256": "9faca0d8a552af74844226df8c2239e98028b86e9410fdb3897b38bce585d64e"
+    },
+    {
+      "name": "nero-data.tar.gz.part012",
+      "size": 16777216,
+      "sha256": "50f0b354033c416788af742dd09c5627c5485eadf6732ef39765ac9cd4d6706e"
+    },
+    {
+      "name": "nero-data.tar.gz.part013",
+      "size": 16777216,
+      "sha256": "989ffd06f1becad8bef7fcf1a467597119135cfa965f8581160abb4125c450f4"
+    },
+    {
+      "name": "nero-data.tar.gz.part014",
+      "size": 16777216,
+      "sha256": "f831252bd2b80efcc7b7b6d8c0c9be264a0267231455662c62946cf69f4c16aa"
+    },
+    {
+      "name": "nero-data.tar.gz.part015",
+      "size": 16777216,
+      "sha256": "9f8de6f11b69768c35f160602c5e62095a2dfebad16dbee1ad76339bc7ad8209"
+    },
+    {
+      "name": "nero-data.tar.gz.part016",
+      "size": 16777216,
+      "sha256": "5fee2bcea9e613bf9c75f9ccaa32c7b448349b96e7f8fff38fcb69e1e2db413d"
+    },
+    {
+      "name": "nero-data.tar.gz.part017",
+      "size": 16777216,
+      "sha256": "d608e1f2318477ecc924db4f98f3e4b0e391473312557704d3504896f4979598"
+    },
+    {
+      "name": "nero-data.tar.gz.part018",
+      "size": 16777216,
+      "sha256": "057d2c4d63e58f29464b0f92871d7ebef7c2c683d6c54f4352f04da4632c9dcc"
+    },
+    {
+      "name": "nero-data.tar.gz.part019",
+      "size": 16777216,
+      "sha256": "9491e09bc0a23a0609b4babf94dea4c5ef225f7f95bfe20f8a2dcc9752369f52"
+    },
+    {
+      "name": "nero-data.tar.gz.part020",
+      "size": 16777216,
+      "sha256": "101f352d15b81a709dc7f2fe5a300dcf4e6c9910d233f0536a34df1c62fc56fa"
+    },
+    {
+      "name": "nero-data.tar.gz.part021",
+      "size": 16777216,
+      "sha256": "4f11fa14734446d852b68a2a4185e611e7bbbe7d5e611e62b2eea38c92466b3f"
+    },
+    {
+      "name": "nero-data.tar.gz.part022",
+      "size": 16777216,
+      "sha256": "1317fce16004773394435a5a43792aec31bab0b51a3d0ad0afa48b063a589c8d"
+    },
+    {
+      "name": "nero-data.tar.gz.part023",
+      "size": 16777216,
+      "sha256": "a449566fe02657b5af9f83534cb8d5ab62f95a3cb3ee4d10502c5158c7626875"
+    },
+    {
+      "name": "nero-data.tar.gz.part024",
+      "size": 16777216,
+      "sha256": "71166668532246b692c5cb434310e0c96fb1827eb7d1dde8b231da98c52238db"
+    },
+    {
+      "name": "nero-data.tar.gz.part025",
+      "size": 16777216,
+      "sha256": "fe6a7c30e262d4a1f5cbd829ab1e49d5816a5684d0e364edbe3dfc06630f680b"
+    },
+    {
+      "name": "nero-data.tar.gz.part026",
+      "size": 16777216,
+      "sha256": "ec57315b540bc12538363b4be417f317766e326de765714b4b945d1442056057"
+    },
+    {
+      "name": "nero-data.tar.gz.part027",
+      "size": 16777216,
+      "sha256": "2485ff99ac6c379c80e03944dfc3e5cf7aad6144394f26164b05de7ed8d2890e"
+    },
+    {
+      "name": "nero-data.tar.gz.part028",
+      "size": 16777216,
+      "sha256": "0228b2a3328675e8659f9fa242f2db42de691b4203277d6f0a142ee56c205801"
+    },
+    {
+      "name": "nero-data.tar.gz.part029",
+      "size": 16777216,
+      "sha256": "3f930890aa7043b0b5ccdacf47fd9ca5d38596a533ee3cf08122b4c28e2b28d7"
+    },
+    {
+      "name": "nero-data.tar.gz.part030",
+      "size": 16777216,
+      "sha256": "3ff3dd11cbf7435dd7c049099fc8445a27c4d282288601a1da909388d6e16158"
+    },
+    {
+      "name": "nero-data.tar.gz.part031",
+      "size": 16777216,
+      "sha256": "83ee83b98e9b2f9d57712b729614ad25c1f9036e00ebc40459f406ed9acaa6f5"
+    },
+    {
+      "name": "nero-data.tar.gz.part032",
+      "size": 16777216,
+      "sha256": "f7131756333d7f0fea0ba0f94ba1a6c483dc8bc11ecc097ab4496c283f083934"
+    },
+    {
+      "name": "nero-data.tar.gz.part033",
+      "size": 16777216,
+      "sha256": "83fcbb2467768832d116841b1d576c89c6d51ddb7be2436772b804111484ea9d"
+    },
+    {
+      "name": "nero-data.tar.gz.part034",
+      "size": 16777216,
+      "sha256": "94f75e60ea5bd47653b2c9ac1aa998618d9defbb6b01d0bf5b4e4823945c275c"
+    },
+    {
+      "name": "nero-data.tar.gz.part035",
+      "size": 16777216,
+      "sha256": "4f1b1cf12ae2e353e6d4c39605a85e32f00114c14936335ab91cb8c03604c06f"
+    },
+    {
+      "name": "nero-data.tar.gz.part036",
+      "size": 10953866,
+      "sha256": "3c1838d6a0eae04e6a820c469e8b8fa86382e1fab27e10d66ab8db54960262e9"
+    }
+  ]
+}

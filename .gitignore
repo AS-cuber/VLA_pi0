@@ -1,4 +1,4 @@
-# Local environments and caches
+# 本地 Python 环境与可重新生成的产物
 .venv/
 .venv-sim/
 __pycache__/
@@ -9,9 +9,13 @@ __pycache__/
 **/build/
 **/dist/
 *.egg-info/
+
+# 编辑器临时文件
 *.swp
 *.swo
 *~
-# Raw data is preserved in the versioned, lossless data/archive/ backup.
+
+# 原始数据在 GitHub 中以 data/archive/ 的无损压缩分卷保存。
+# 本地原始数据保留；解压后不重复加入 Git。
 data/nero_demos/
 data/nero_aligned_v1/
