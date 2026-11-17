@@ -13,9 +13,11 @@ import tarfile
 
 MODEL_FILES = (
     'nero_pi0_adapter.py', 'nero_pi0_config.py', 'prepare_nero_pi0.py',
-    'run_nero_pi0.py', 'check_nero_checkpoint.py', 'diagnose_nero_actions.py',
+    'run_nero_pi0.py', 'check_nero_checkpoint.py', 'diagnose_nero_actions.py', 'nero_batch.py',
 )
 PURPOSES = {
+    'nero_batch.py': '按新批次独立准备统计、训练与评估，默认 red_v1',
+    'export_nero_lerobot.py': '导出本批次 LeRobot train/validation 数据',
     'nero_pi0_adapter.py': '三相机与 16 维状态/动作适配公共模块；不单独运行',
     'nero_pi0_config.py': 'NERO 数据变换和 LoRA 训练配置；由运行入口读取',
     'prepare_nero_pi0.py': '连接训练集并计算归一化统计',
@@ -198,20 +200,86 @@ def write_owned(project, relative, text, backup):
 
 
 def file_index(project):
-    lines = ['# 文件索引', '', '命令均在项目根目录运行，使用 `vendor/openpi/.venv/bin/python`。', '',
-             '| 文件 | 用途 | 命令或使用方式 |', '|---|---|---|']
+    gpu = ('env -u LD_LIBRARY_PATH -u LD_PRELOAD '
+           'CUDA_VISIBLE_DEVICES=1 JAX_PLATFORMS=cuda XLA_PYTHON_CLIENT_PREALLOCATE=false')
+    python = 'vendor/openpi/.venv/bin/python'
+    cpu = 'env -u LD_LIBRARY_PATH -u LD_PRELOAD JAX_PLATFORMS=cpu'
+    recipes = {
+        'nero_batch.py': ('红色等新批次完成导出后，依次准备统计、建立新实验；评估按需运行', [
+            f'{cpu} {python} scripts/model/nero_batch.py prepare --project {project} --dataset red_v1',
+            f'{gpu} {python} scripts/model/nero_batch.py train --project {project} --dataset red_v1 '
+            '--exp-name "red_1000_$(date +%Y%m%d_%H%M%S)" --steps 1000 --save-interval 250',
+            'read -r -p "红色检查点完整路径：" NERO_CHECKPOINT && '
+            f'{gpu} {python} scripts/model/nero_batch.py evaluate --project {project} --dataset red_v1 '
+            '--checkpoint "$NERO_CHECKPOINT" --all-frames']),
+        'export_nero_lerobot.py': ('对齐和原始数据已同步到服务器、需要生成LeRobot数据时', [
+            f'{python} scripts/data/export_nero_lerobot.py --aligned data/nero_aligned_red_v1 '
+            '--raw-root data/nero_demos/red --output data/nero_lerobot_red_v1 --repo-prefix local/nero_red_v1']),
+        'prepare_nero_pi0.py': ('仅黄色旧8条训练集首次准备统计；不是红色入口', [
+            f'{cpu} {python} scripts/model/prepare_nero_pi0.py --project {project}']),
+        'run_nero_pi0.py': ('黄色旧实验加载排错使用verify，复现训练使用train', [
+            f'{gpu} {python} scripts/model/run_nero_pi0.py verify --project {project}',
+            f'{gpu} {python} scripts/model/run_nero_pi0.py train --project {project} '
+            '--exp-name "yellow_1000_$(date +%Y%m%d_%H%M%S)" --steps 1000 --save-interval 250']),
+        'check_nero_checkpoint.py': ('需要重载黄色旧模型或复现其719帧基础模型对照时', [
+            'read -r -p "黄色检查点完整路径：" NERO_CHECKPOINT && '
+            f'{gpu} {python} scripts/model/check_nero_checkpoint.py --project {project} '
+            '--checkpoint "$NERO_CHECKPOINT" --all-frames --compare-base']),
+        'diagnose_nero_actions.py': ('已有黄色719帧完整预测，需要定位某个误差时；只使用CPU', [
+            'read -r -p "黄色trained/report.json完整路径：" NERO_EVALUATION && '
+            f'{python} scripts/model/diagnose_nero_actions.py --project {project} --evaluation "$NERO_EVALUATION"']),
+        'organize_vla_wu.py': ('服务器旧脚本散落或需清理已识别旧产物时；日常训练不必反复运行', [
+            f'python3 scripts/tools/organize_vla_wu.py --project {project}',
+            f'python3 scripts/tools/organize_vla_wu.py --project {project} --apply',
+            f'python3 scripts/tools/organize_vla_wu.py --project {project} --write-index']),
+    }
+    shared = {
+        'nero_pi0_adapter.py': ('相机角色、RGB布局和16维rad/m数据变换',
+                               '由nero_pi0_config.py的数据变换调用；修改机器人数据布局时阅读，无独立CLI'),
+        'nero_pi0_config.py': ('pi0_base、LoRA、50步动作块与NERO变换基础配置',
+                              '由新旧模型入口自动读取；更改基础设置时阅读，无独立CLI'),
+    }
+    outputs = {
+        'nero_batch.py': '本批次assets、checkpoints与results目录；prepare只用训练集数值',
+        'export_nero_lerobot.py': 'data/nero_lerobot_red_v1/中的train、validation、导出报告与episode映射',
+        'prepare_nero_pi0.py': '黄色旧assets/pi0_nero_box_v1/目录的统计和来源报告',
+        'run_nero_pi0.py': '黄色旧checkpoints/pi0_nero_box_v1/新实验与results/pi0_nero_box_v1/日志',
+        'check_nero_checkpoint.py': '黄色旧comparison_或checkpoint_check_目录的预测、报告与可选对照',
+        'diagnose_nero_actions.py': '黄色旧action_diagnostics_目录的JSON和CSV，不重跑模型',
+        'organize_vla_wu.py': '默认只打印计划；--apply执行移动和清理；--write-index仅更新本文件',
+    }
+    lines = ['# 服务器文件：用途、场景与命令', '',
+             '每个命令框都包含工作目录，需要整段复制。示例GPU为1，请按空闲设备选择。', '']
     for path in sorted((project / 'scripts').rglob('*.py')):
-        if 'vla_wu_templates' in path.parts:
+        if 'vla_wu_templates' in path.parts or '__pycache__' in path.parts:
             continue
         relative = path.relative_to(project).as_posix()
-        purpose = PURPOSES.get(path.name, 'Python 包标记；不单独运行' if path.name == '__init__.py' else '项目工具')
-        if path.name in ('nero_pi0_adapter.py', 'nero_pi0_config.py', '__init__.py'):
-            command = '由其他入口导入'
-        else:
-            command = f'`vendor/openpi/.venv/bin/python {relative} --help`'
-        lines.append(f'| `{relative}` | {purpose} | {command} |')
-    lines += ['', '环境安装入口为根目录 `setup_openpi.sh`（如存在）；使用 `bash setup_openpi.sh`，已有环境日常无需运行。',
-              '模型、数据、日志文件的含义见[目录说明](目录说明.md)。', '']
+        lines += [f'## `{relative}`', '']
+        if path.name == '__init__.py':
+            purpose = ('模型包与相邻模块导入路径' if path.parent.name == 'model' else 'Python包入口标记')
+            lines += [f'用途：{purpose}。导入对应目录模块时自动使用，无独立运行命令。', '']
+            continue
+        if path.name in shared:
+            purpose, usage = shared[path.name]
+            lines += [f'用途：{purpose}。', f'使用场景与调用：{usage}。', '']
+            continue
+        if path.name not in recipes:
+            tree = ast.parse(path.read_text(encoding='utf-8'))
+            purpose = (ast.get_docstring(tree) or '额外项目模块').splitlines()[0]
+            lines += [f'用途：{purpose}',
+                      '当前训练流程未指定此额外文件的入口参数，请先阅读源码；不自动推断执行命令。', '']
+            continue
+        when, commands = recipes[path.name]
+        lines += [f'用途：{PURPOSES[path.name]}。', f'什么时候用：{when}。', '']
+        for command in commands:
+            lines += ['```bash', f'cd {project} &&', command, '```', '']
+        lines += [f'输出与影响：{outputs[path.name]}。', '']
+    lines += ['## 模板与环境', '',
+              'scripts/tools/vla_wu_templates/README.md用于服务器总入口；docs/运行说明.md用于运行命令；',
+              'docs/目录说明.md用于数据和资产位置；docs/实验结果.md用于黄色旧结果。',
+              '这些Markdown是说明模板，不是程序。模板更新后重新安装工具包，或用--apply更新说明。',
+              '仅更新本页可用--write-index，不会执行目录清理。', '',
+              'vendor/openpi/.venv/是模型环境；统计与检查点由模型入口读取，文件含义见[目录说明](目录说明.md)。', '']
     return '\n'.join(lines)
 
 
@@ -275,8 +343,6 @@ def apply_plan(project, plan, templates):
             elif path.is_file():
                 path.unlink()
         write_owned(project, 'docs/文件索引.md', file_index(project), backup)
-        write_owned(project, 'scripts/model/README.md',
-            '# 模型工具\n\n各文件说明和命令见 [文件索引](../../docs/文件索引.md) 与 [运行说明](../../docs/运行说明.md)。\n', backup)
         uploaded = project / 'vla-wu-layout.tar.gz'
         if uploaded.is_file() and not uploaded.is_symlink():
             uploaded.unlink()
@@ -299,11 +365,21 @@ def apply_plan(project, plan, templates):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--project', type=Path, default=Path('/home/clwu/vla-wu'))
-    parser.add_argument('--apply', action='store_true', help='执行整理；默认仅列出操作')
+    action = parser.add_mutually_exclusive_group()
+    action.add_argument('--apply', action='store_true', help='执行整理；默认仅列出操作')
+    action.add_argument('--write-index', action='store_true', help='只更新服务器逐文件说明，不执行归类或清理')
     args = parser.parse_args()
     project = args.project.resolve()
     templates = Path(__file__).resolve().parent / 'vla_wu_templates'
     require((templates / 'README.md').is_file(), '文档模板不完整，请使用完整整理包')
+    if args.write_index:
+        require((project / 'scripts').is_dir(), '未找到项目scripts目录')
+        target = project / 'docs/文件索引.md'
+        require(target.resolve().is_relative_to(project), '文件索引目标路径越界')
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(file_index(project), encoding='utf-8')
+        print(f'已更新文件说明：{target}')
+        return
     plan = build_plan(project)
     if args.apply:
         print(f"归类 {len(plan['moves'])} 个脚本，清理 {len(plan['deletions'])} 项临时产物。", flush=True)

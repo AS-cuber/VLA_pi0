@@ -8,18 +8,25 @@ import math
 from pathlib import Path
 
 import numpy as np
+import sys
+
+if __package__ in (None, ''):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from scripts.data.export_nero_lerobot import resolve_image
 
 
-def check(output):
+def check(output, raw_root=None):
     manifest=json.loads((output/'dataset_manifest.json').read_text())
     split=json.loads((output/'split.json').read_text())
     assert manifest['status']=='alignment_prepared_not_lerobot', '数据构建未完成'
-    assert len(split['train'])==8 and len(split['validation'])==2
+    assert split['train'] and split['validation'], '训练/验证集不能为空'
+    names = split['train'] + split['validation']
+    assert len(names) == len(set(names)) == manifest['episode_count'], '划分重复或数量不符'
     assert not set(split['train']) & set(split['validation']), '训练/验证轨迹泄漏'
     assert set(split['train']+split['validation'])=={r['episode'] for r in manifest['episodes']}
     total=0
     for report in manifest['episodes']:
-        source=Path(report['raw_episode'])
+        source=(raw_root / report['episode']) if raw_root else Path(report['raw_episode'])
         for name,digest in report['source_hashes'].items():
             assert hashlib.sha256((source/name).read_bytes()).hexdigest()==digest, f'原始来源已改变：{source.name}/{name}'
         with np.load(output/report['episode']/'aligned.npz',allow_pickle=False) as data:
@@ -30,8 +37,9 @@ def check(output):
             assert np.all(np.abs(np.diff(grid)-1e9/15)<=1), '不是统一 15Hz 时间轴'
             assert np.all(data['image_receive_ns']<=grid[:,None]), '使用了未来图像'
             assert np.max(grid[:,None]-data['image_receive_ns'])<=100_000_000
-            for path in data['image_paths'].ravel():
-                assert Path(path).is_file(),f'图像缺失：{path}'
+            for paths in data['image_paths']:
+                for role, path in zip(manifest['camera_order'], paths):
+                    resolve_image(path, report['raw_episode'], source, role)
             # Independently decode raw integers for start/middle/end samples.
             joint_targets={0x155:(0,1),0x156:(2,3),0x157:(4,5),0x170:(6,)}
             joint_feedback={0x2a5:(0,1),0x2a6:(2,3),0x2a7:(4,5),0x2a9:(6,)}
@@ -62,13 +70,14 @@ def check(output):
                             expected=int.from_bytes(payload[:4],'big',signed=True)*1e-6
                             assert np.isclose(array[index,side_index*8+7],expected,rtol=1e-6,atol=1e-9)
             total+=n
-        print(report['episode'],n,'帧：维度、时间与原始数值核对通过')
+        print(report['episode'],n,'帧')
     assert total==manifest['total_frames']
-    print(f'全部通过：10 条，{total} 帧，训练 8 条、验证 2 条。未归一化，未生成 LeRobot 格式。')
+    print(f'{len(names)} 条，{total} 帧；训练 {len(split["train"])} 条、验证 {len(split["validation"])} 条。')
 
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--input',type=Path,default=Path(__file__).resolve().parents[2]/'data/nero_aligned_v1')
+    parser.add_argument('--input',type=Path,default=Path(__file__).resolve().parents[2]/'data/nero_aligned_red_v1')
+    parser.add_argument('--raw-root',type=Path,help='原始示教移动后，指定当前 red/yellow 目录')
     args=parser.parse_args()
-    check(args.input)
+    check(args.input,args.raw_root)

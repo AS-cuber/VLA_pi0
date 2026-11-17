@@ -12,7 +12,7 @@ import json
 import numpy as np
 
 from scripts.model.prepare_nero_pi0 import EXPECTED_FEATURES, calculate_stats, check_report, connect_train
-from scripts.model.run_nero_pi0 import EXPECTED_COMMIT, capture_training_output, digest, read_training_metrics, readiness, training_config
+from scripts.model.run_nero_pi0 import EXPECTED_COMMIT, PRESENTATION_SOURCE_VERSIONS, capture_training_output, digest, read_training_metrics, readiness, source_version_matches, training_config
 
 
 class PreparationTests(unittest.TestCase):
@@ -101,6 +101,14 @@ class PreparationTests(unittest.TestCase):
 
 
 class ReadinessTests(unittest.TestCase):
+    def test_output_revisions_keep_existing_statistics_usable(self):
+        model = Path(__file__).resolve().parents[2] / 'scripts/model'
+        for name, (previous, current) in PRESENTATION_SOURCE_VERSIONS.items():
+            with self.subTest(name=name):
+                self.assertEqual(digest(model / name), current)
+                self.assertTrue(source_version_matches(name, previous, current))
+                self.assertFalse(source_version_matches(name, previous, 'unreviewed change'))
+
     def fixture(self, root):
         scripts = root / "scripts"
         scripts.mkdir()

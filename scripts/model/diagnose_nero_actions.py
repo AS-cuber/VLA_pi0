@@ -115,7 +115,7 @@ def main():
     output = Path(tempfile.mkdtemp(prefix="action_diagnostics_", dir=parent))
     result.update(status="offline_action_diagnostics_completed", evaluation_report=str(path),
                   trained_checkpoint=report["trained_checkpoint"],
-                  note="Bias = prediction minus target. Label offsets are not calibrated control latency.")
+                  note="Bias = prediction minus target; label_offset_s = horizon_index / 15.")
     (output / "diagnostics.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     save_csv(output / "horizon_errors.csv", result["horizons"])
     save_csv(output / "right_gripper_first_actions.csv", result["right_gripper_first_actions"])
@@ -131,7 +131,7 @@ def main():
         print(f"{row['source_episode']}，帧 {row['local_frame']}，"
               f"目标 {row['target_width_mm']:.2f} mm，预测 {row['predicted_width_mm']:.2f} mm，"
               f"偏差 {row['signed_error_mm']:+.2f} mm")
-    print("PASS：已完成离线动作诊断，结果目录：", output)
+    print("分析结果目录：", output)
 
 
 if __name__ == "__main__":

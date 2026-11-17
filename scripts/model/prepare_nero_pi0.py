@@ -171,8 +171,8 @@ def prepare(project):
     for key in norm_stats:
         require(np.array_equal(loaded[key].mean, norm_stats[key].mean) and
                 np.array_equal(loaded[key].std, norm_stats[key].std), "统计文件重载不符")
-    print(f"PASS：训练集归一化统计已保存并重载验证：{output / 'norm_stats.json'}")
-    print("仅使用 8 条训练示教；未使用验证集数值；未加载模型权重；未启动训练。")
+    print(f"归一化统计：{output / 'norm_stats.json'}")
+    print("统计输入：train，8条示教，2710帧；动作块50步。")
 
 
 def main():

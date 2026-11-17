@@ -20,11 +20,16 @@ def main() -> None:
     backup = root / "data" / "archive"
     manifest = json.loads((backup / "manifest.json").read_text(encoding="utf-8"))
     directories = manifest["directories"]
-    if directories != ["nero_demos", "nero_aligned_v1"]:
-        raise SystemExit("Unexpected data directories in manifest")
+    version = manifest.get("format_version", 1)
+    if version == 1 and directories == ["nero_demos", "nero_aligned_v1"]:
+        destinations = {"nero_demos": root / "data/nero_demos/yellow",
+                        "nero_aligned_v1": root / "data/nero_aligned_v1"}
+    elif version == 2 and directories == ["nero_demos", "nero_aligned_v1", "nero_aligned_red_v1"]:
+        destinations = {name: root / "data" / name for name in directories}
+    else:
+        raise SystemExit("Unexpected data directories or format version in manifest")
     if not args.verify_only:
-        for name in directories:
-            target = root / "data" / name
+        for target in destinations.values():
             if target.exists() or target.is_symlink():
                 raise SystemExit(f"Refusing to overwrite existing directory: {target}")
 
@@ -86,7 +91,9 @@ def main() -> None:
         if count != manifest["original_file_count"] or original_bytes != manifest["original_bytes"]:
             raise SystemExit("Restored file count or byte count mismatch")
         for name in directories:
-            (extracted / "data" / name).rename(root / "data" / name)
+            target = destinations[name]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            (extracted / "data" / name).rename(target)
         print(f"Restored {count:,} files ({original_bytes:,} bytes) to {root / 'data'}")
 
 

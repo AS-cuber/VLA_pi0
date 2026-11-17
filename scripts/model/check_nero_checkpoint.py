@@ -79,7 +79,7 @@ def error_metrics(predictions, references, valid):
     return {"anchor_count": len(predictions), "valid_future_vectors": int(valid.sum()),
             "first_action": summarize(errors[:, 0, :]),
             "all_valid_future_actions": summarize(errors[valid]),
-            "note": "Offline command-target errors; overlapping futures; not task success or independent trials."}
+            "note": "MAE uses valid_mask; joint errors are in deg, gripper errors in mm."}
 
 
 def compare_reports(trained, base):
@@ -105,7 +105,7 @@ def compare_reports(trained, base):
     return {"status": "paired_evaluation_passed", "evaluation_scope": trained["evaluation_scope"],
             "anchor_count": trained["metrics"]["anchor_count"],
             "valid_future_vectors": trained["metrics"]["valid_future_vectors"],
-            "comparison": comparison, "note": "Lower MAE is better; this is not physical task success."}
+            "comparison": comparison, "note": "reduction_percent = (base - trained) / base * 100."}
 
 
 def evaluate(project, checkpoint, output, all_frames=False, model_kind="trained"):
@@ -166,7 +166,7 @@ def evaluate(project, checkpoint, output, all_frames=False, model_kind="trained"
         states.append(observation["state"].copy())
         masks.append(np.arange(HORIZON) < anchor["remaining_frames"])
         if len(anchors) <= 6 or ordinal == 0 or (ordinal + 1) % 50 == 0 or ordinal + 1 == len(anchors):
-            logging.info("模型=%s，进度 %d/%d，样本 %d：shape=%s，全部有限，耗时 %.3fs",
+            logging.info("模型=%s，进度 %d/%d，样本 %d：shape=%s，耗时 %.3fs",
                          model_kind, ordinal + 1, len(anchors), anchor["index"], predicted.shape, elapsed_times[-1])
     predictions, references, masks = np.stack(predictions), np.stack(references), np.stack(masks)
     metrics = error_metrics(predictions, references, masks)
@@ -257,10 +257,10 @@ def main():
     try:
         if args.compare_base:
             report.update(paired_evaluation(project, checkpoint, output, args.all_frames))
-            logging.info("PASS：基础模型与微调模型的 %d 个验证时刻对照完成。", report["anchor_count"])
+            logging.info("基础模型与微调模型对照完成：%d 个验证时刻。", report["anchor_count"])
         else:
             report.update(evaluate(project, checkpoint, output, args.all_frames, args.model))
-            logging.info("PASS：%s 模型的 %d 个验证时刻推理通过。", args.model, report["metrics"]["anchor_count"])
+            logging.info("%s 模型评估完成：%d 个验证时刻。", args.model, report["metrics"]["anchor_count"])
     except BaseException as error:
         report.update(status="failed_or_interrupted", error_type=type(error).__name__, error=str(error))
         logging.exception("本轮失败或中断，结果已保留。")

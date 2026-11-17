@@ -1,34 +1,24 @@
-# vla-wu：NERO π0 训练与评估
+# vla-wu：NERO π0 微调
 
-任务：使用官方 pi0_base 和 NERO 示教数据微调，完成右臂入盒、双臂合盖。
+本项目在GPU服务器上使用官方pi0_base基础权重微调NERO数据。红色新批次与黄色历史批次分别管理。
 
-项目目录 `{{PROJECT}}`。模型代码位于 `scripts/model/`，Python 环境为 `vendor/openpi/.venv/bin/python`。
+| 批次 | 原始示教 | 使用的成功示教 | 训练/验证帧数 | 入口 |
+|---|---:|---:|---|---|
+| red_v1 | 50 | 49 | 11,960 / 3,158 | `scripts/model/nero_batch.py` |
+| 黄色历史box_v1 | 10 | 10 | 2,710 / 719 | 原prepare/run/check入口 |
 
-## 文档
+红色数据是否已到本机，以 `data/nero_aligned_red_v1/`、`data/nero_lerobot_red_v1/` 的实际文件为准。数据从本地同步，服务器整理工具不生成新示教。
 
-- [文件索引](docs/文件索引.md)：每个项目脚本的用途和调用方式。
-- [运行说明](docs/运行说明.md)：归一化、训练、检查点评估及结果读取。
-- [目录说明](docs/目录说明.md)：数据、权重、统计和日志文件。
-- [实验结果](docs/实验结果.md)：当前离线误差和下一阶段。
+- [运行说明](docs/运行说明.md)：红色导出、统计、训练和评估命令，以及各模型脚本用途。
+- [目录说明](docs/目录说明.md)：数据、统计、检查点和日志的位置。
+- [逐文件说明](docs/文件索引.md)：每个脚本的用途、使用场景、完整命令和输出。
+- [黄色历史结果](docs/实验结果.md)：旧10条黄色示教的实验结果，不是red的训练结果。
 
-## 常用命令
+使用 `vendor/openpi/.venv/bin/python`。现有环境不需要重新安装本地相机和CAN依赖。完整本地采集、对齐与传输流程在W_pro根目录的README中。
 
-```bash
-cd {{PROJECT}}
-nvidia-smi
-vendor/openpi/.venv/bin/python scripts/model/run_nero_pi0.py --help
-vendor/openpi/.venv/bin/python scripts/model/check_nero_checkpoint.py --help
-```
-
-新实验示例（GPU 1 空闲时）：
+安装或更新工具包后生成逐文件说明：
 
 ```bash
-env -u LD_LIBRARY_PATH -u LD_PRELOAD \
-  CUDA_VISIBLE_DEVICES=1 JAX_PLATFORMS=cuda \
-  XLA_PYTHON_CLIENT_PREALLOCATE=false \
-  vendor/openpi/.venv/bin/python -u scripts/model/run_nero_pi0.py train \
-  --steps 1000 --save-interval 250 \
-  --exp-name "nero_1000_$(date +%Y%m%d_%H%M%S)"
+cd /home/clwu/vla-wu && \
+python3 scripts/tools/organize_vla_wu.py --project /home/clwu/vla-wu --write-index
 ```
-
-当前已有 1,000 步模型与全量离线对照结果，开发暂停；下一阶段是实时部署和实机评估。

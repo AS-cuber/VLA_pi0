@@ -74,7 +74,7 @@ def main():
     caches = {side: new_cache() for side in CHANNELS}
     selector = selectors.DefaultSelector()
     buses = []
-    print('只读监听：left=can1，right=can0。反馈来源尚需实机对照确认；不做运动安全判定。', flush=True)
+    print('只读监听：left=can1，right=can0。', flush=True)
     try:
         for side, channel in CHANNELS.items():
             verify_usb(channel, SERIALS[side])

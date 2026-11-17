@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""将 NERO 15 Hz 中间数据导出为服务器已安装的 LeRobot 格式；不联网、不控制硬件。"""
+"""将 NERO 15 Hz 对齐数据导出为 LeRobot 格式。"""
 import argparse
 import hashlib
 import importlib
@@ -109,9 +109,9 @@ def preflight(aligned, raw_root):
                     checked.add(path)
         image_count += len(checked)
         total += n
-        print(f"{name}: {n} 帧，路径、图像、来源校验通过", flush=True)
+        print(f"{name}: {n} 帧", flush=True)
     require(total == manifest["total_frames"], "总帧数不符")
-    print(f"预检查通过：{len(reports)} 条、{total} 帧、{image_count} 张被引用图像；"
+    print(f"输入：{len(reports)} 条、{total} 帧、{image_count} 张被引用图像；"
           f"训练 {len(split['train'])} 条，验证 {len(split['validation'])} 条。", flush=True)
     return manifest, split, reports
 
@@ -194,17 +194,17 @@ def export_split(cls, aligned, raw_root, output, repo_id, names, reports):
                         f"导出后图像不可读取：{role}")
         offset += item["frames"]
     write_json(output / "nero_episode_map.json", mapping)
-    print(f"重载检查通过：{repo_id}，{expected_count} 帧", flush=True)
+    print(f"已重载 {repo_id}: {expected_count} 帧", flush=True)
     return {"repo_id": repo_id, "frames": expected_count, "episodes": mapping}
 
 
 def main():
     root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--aligned", type=Path, default=root / "data/nero_aligned_v1")
-    parser.add_argument("--raw-root", type=Path, default=root / "data/nero_demos")
-    parser.add_argument("--output", type=Path, default=root / "data/nero_lerobot_v1")
-    parser.add_argument("--repo-prefix", default="local/nero_box_v1")
+    parser.add_argument("--aligned", type=Path, default=root / "data/nero_aligned_red_v1")
+    parser.add_argument("--raw-root", type=Path, default=root / "data/nero_demos/red")
+    parser.add_argument("--output", type=Path, default=root / "data/nero_lerobot_red_v1")
+    parser.add_argument("--repo-prefix", default="local/nero_red_v1")
     parser.add_argument("--dry-run", action="store_true", help="仅检查输入，不需要 LeRobot，不写输出")
     args = parser.parse_args()
     require(args.repo_prefix.count("/") == 1 and all(args.repo_prefix.split("/")), "repo-prefix 应为 local/名称")
@@ -212,7 +212,7 @@ def main():
         require(not args.output.exists(), "输出目录已存在，拒绝覆盖；请使用新的 --output")
     manifest, split, reports = preflight(args.aligned, args.raw_root)
     if args.dry_run:
-        print("仅预检查：未生成 LeRobot 数据。")
+        print("预检查完成。")
         return
     cls = load_lerobot()
     args.output.mkdir(parents=True, exist_ok=False)
@@ -239,7 +239,7 @@ def main():
         result.update(status="incomplete_do_not_train", error=str(error))
         write_json(report_path, result)
         raise
-    print(f"导出完成：{args.output}\n训练/验证分别保存；未启动训练、未上传数据、未操作硬件。")
+    print(f"导出完成：{args.output}\n训练集：train/；验证集：validation/；报告：export_report.json")
 
 
 if __name__ == "__main__":

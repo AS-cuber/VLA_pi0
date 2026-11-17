@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NERO 双臂三相机只读示教记录；默认窗口控制开始、成功或失败结束。"""
+"""NERO 双臂三相机只读采集；临时录制，仅成功结束且无采集异常时保存示教。"""
 import argparse
 from collections import Counter
 from datetime import datetime
@@ -12,6 +12,7 @@ import socket
 import struct
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -22,7 +23,7 @@ if __package__ in (None, ''):
 from scripts.acquisition.nero_teleop_read import CHANNELS, SERIALS, TARGETS, FEEDBACK, FRAME, decode, verify_usb
 
 CAMERAS = {'base': '263022078897', 'left_wrist': '263022072396', 'right_wrist': '263022078453'}
-PROMPT = '用右臂将黄色长方体物体放入透明盒子，然后双臂协作合上盒盖。'
+PROMPT = '用右臂将红色物体放入透明盒子，然后双臂协作合上盒盖。'
 REQUIRED = set(TARGETS) | set(FEEDBACK) | {0x159, 0x2A8}
 
 
@@ -254,13 +255,15 @@ class Recorder:
                         for role in CAMERAS))
 
     def start_recording(self):
-        if self.start_ns is not None:
+        if self.start_ns is not None or self.stop.is_set():
             return
         if not self.ready():
             print('尚未就绪：需要三路新鲜图像及两侧完整控制目标/反馈。', flush=True)
             return
         self.interface_before = interface_stats()
         with self.lock:
+            if self.stop.is_set():
+                return
             self.start_ns = time.monotonic_ns()
             self.socket_drops_at_start = dict(self.socket_drops)
             self.active = True
@@ -269,10 +272,12 @@ class Recorder:
 
     def finish(self, outcome):
         with self.lock:
+            if self.end_ns is not None:
+                return
             self.end_ns = time.monotonic_ns()
             self.socket_drops_at_end = dict(self.socket_drops)
             self.active = False
-        self.outcome = outcome if self.start_ns is not None else 'not_recorded'
+            self.outcome = outcome if self.start_ns is not None else 'not_recorded'
         self.stop.set()
 
     def snapshot(self):
@@ -315,7 +320,7 @@ class Recorder:
                        feedback_source_confirmed=self.args.feedback_source_confirmed,
                        training_ready=False)
         write_json(self.output / 'summary.json', summary)
-        print('已保存:', self.output, '\n结果标记:', self.outcome, flush=True)
+        print(f'本轮结束：{self.outcome}；图像计数：{dict(self.image_counts)}', flush=True)
 
 
 def run(args):
@@ -339,7 +344,7 @@ def run(args):
     if not args.headless:
         import tkinter as tk
         gui = tk.Tk()
-        gui.title('NERO 示教采集：只读，不控制机械臂')
+        gui.title('NERO 示教采集')
         gui.resizable(True, True)
         gui.minsize(780, 360)
         width = max(780, min(1400, gui.winfo_screenwidth() - 80))
@@ -354,24 +359,45 @@ def run(args):
         gui.grid_rowconfigure(1, weight=1)
         for column in range(3):
             gui.grid_columnconfigure(column, weight=1, uniform='camera_columns')
-    output = args.output / datetime.now().strftime('episode_%Y%m%d_%H%M%S_%f')
-    output.mkdir(parents=True, exist_ok=False)
-    rec = Recorder(output, args)
-    clock = dict(monotonic_ns=time.monotonic_ns(), unix_ns=time.time_ns())
-    write_json(output / 'metadata.json', dict(schema_version=2, task=args.prompt,
-               roles={'right': '抓取、放入、参与协作盖盖', 'left': '协作盖盖'},
-               cameras=CAMERAS, channels=CHANNELS, usb_serials=SERIALS,
-               camera_mode=f'RGB 640x480 {args.camera_fps}fps requested; JPEG quality 95',
-               requested_camera_fps=args.camera_fps,
-               target_snapshot_hz=30, clock_anchor=clock,
-               time_alignment='asynchronous; host userspace receive times; no hardware sync',
-               feedback_source_confirmed=args.feedback_source_confirmed,
-               feedback_source_note=args.feedback_source_note,
-               success_definition='物体在盒内，双臂离开后盒盖保持关闭；不默认要求扣紧卡扣',
-               training_ready=False))
     try:
+        args.output.mkdir(parents=True, exist_ok=True)
+        destination = args.output / datetime.now().strftime('episode_%Y%m%d_%H%M%S_%f')
+        with tempfile.TemporaryDirectory(prefix='.recording_', dir=args.output) as temporary:
+            rec = Recorder(Path(temporary), args)
+            capture_session(args, rec, gui, terminal_follower, preview_panels)
+            saved = rec.outcome == 'success_user_marked' and rec.start_ns is not None and not rec.errors
+            if saved:
+                if destination.exists() or destination.is_symlink():
+                    raise FileExistsError(f'示教目录已存在，拒绝覆盖：{destination}')
+                rec.output.rename(destination)
+        if saved:
+            print('已保存成功示教：', destination, flush=True)
+        else:
+            print(f'本轮数据已丢弃（{rec.outcome}），未保存示教。', flush=True)
+    finally:
+        if gui is not None:
+            gui.destroy()
+
+
+def capture_session(args, rec, gui, terminal_follower, preview_panels):
+    output = rec.output
+    try:
+        clock = dict(monotonic_ns=time.monotonic_ns(), unix_ns=time.time_ns())
+        write_json(output / 'metadata.json', dict(schema_version=2, task=args.prompt,
+                   roles={'right': '抓取、放入、参与协作盖盖', 'left': '协作盖盖'},
+                   cameras=CAMERAS, channels=CHANNELS, usb_serials=SERIALS,
+                   camera_mode=f'RGB 640x480 {args.camera_fps}fps requested; JPEG quality 95',
+                   requested_camera_fps=args.camera_fps,
+                   target_snapshot_hz=30, clock_anchor=clock,
+                   time_alignment='asynchronous; host userspace receive times; no hardware sync',
+                   feedback_source_confirmed=args.feedback_source_confirmed,
+                   feedback_source_note=args.feedback_source_note,
+                   success_definition='物体在盒内，双臂离开后盒盖保持关闭；不默认要求扣紧卡扣',
+                   training_ready=False))
         status = None
         if gui is not None:
+            import tkinter as tk
+            from PIL import Image
             status = tk.Label(gui, text='等待三相机和两侧 CAN 就绪……')
             status.grid(row=0, column=0, columnspan=3, sticky='ew', pady=8)
             for column, role in enumerate(CAMERAS):
@@ -385,8 +411,8 @@ def run(args):
                 canvas.grid(row=1, column=0, sticky='nsew')
                 preview_panels[role] = dict(canvas=canvas, item=None, photo=None, last_key=None)
             tk.Button(gui, text='开始记录 (S)', command=rec.start_recording).grid(row=2, column=0, sticky='ew', padx=4, pady=10, ipady=8)
-            tk.Button(gui, text='成功结束 (F)', command=lambda: rec.finish('success_user_marked')).grid(row=2, column=1, sticky='ew', padx=4, pady=10, ipady=8)
-            tk.Button(gui, text='失败结束 (X)', command=lambda: rec.finish('failed_user_marked')).grid(row=2, column=2, sticky='ew', padx=4, pady=10, ipady=8)
+            tk.Button(gui, text='成功保存 (F)', command=lambda: rec.finish('success_user_marked')).grid(row=2, column=1, sticky='ew', padx=4, pady=10, ipady=8)
+            tk.Button(gui, text='失败丢弃 (X)', command=lambda: rec.finish('failed_user_marked')).grid(row=2, column=2, sticky='ew', padx=4, pady=10, ipady=8)
             gui.bind('<KeyPress-s>', lambda e: rec.start_recording())
             gui.bind('<KeyPress-f>', lambda e: rec.finish('success_user_marked'))
             gui.bind('<KeyPress-x>', lambda e: rec.finish('failed_user_marked'))
@@ -396,9 +422,9 @@ def run(args):
             rec.launch(rec.can_worker, side, channel)
         for role, serial in CAMERAS.items():
             rec.launch(rec.camera_worker, role, serial)
-        print('正在打开三路图像和两侧 CAN。不会发送控制指令。', flush=True)
+        print('正在打开三路图像和两侧 CAN。', flush=True)
         if args.headless:
-            print('无窗口试录模式：所有数据就绪后自动开始，到时标记 diagnostic。', flush=True)
+            print('临时诊断模式：就绪后自动开始；计时结束后丢弃数据，仅在终端显示计数。', flush=True)
         boot = time.monotonic()
         next_sample = boot
         next_display = boot
@@ -453,7 +479,7 @@ def run(args):
                             panel['photo'] = photo
                             panel['last_key'] = key
                         state = 'RECORDING' if rec.active else 'READY：按 S 开始' if ready else 'WAITING：缺少或过期数据'
-                        status.configure(text=state + ' | 左 can1 / 右 can0 | Esc 中止')
+                        status.configure(text=state + ' | 左 can1 / 右 can0 | F 保存 / X、Esc 丢弃')
                         next_display = now + 0.1
                     gui.update()
                 if now >= next_log:
@@ -471,17 +497,15 @@ def run(args):
         if rec.end_ns is None:
             rec.finish('incomplete_error' if rec.errors else 'aborted')
         rec.close()
-        if gui is not None:
-            gui.destroy()
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--headless', action='store_true', help='无窗口静止试录，必须指定 --seconds')
+    parser.add_argument('--headless', action='store_true', help='无窗口临时试录，结束后丢弃数据；必须指定 --seconds')
     parser.add_argument('--no-follow-terminal', action='store_true', help='关闭默认的终端尺寸跟随，改为手动缩放预览窗口')
-    parser.add_argument('--seconds', type=float, default=0, help='自动结束时长；窗口模式 0 表示手动结束')
-    parser.add_argument('--camera-fps', type=int, choices=(15, 30), default=30, help='相机请求帧率；15 用于低带宽诊断')
-    parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[2]/'data'/'nero_demos')
+    parser.add_argument('--seconds', type=float, default=0, help='自动结束时长；到时丢弃未确认成功的数据，0表示手动结束')
+    parser.add_argument('--camera-fps', type=int, choices=(15, 30), default=15, help='相机请求帧率；当前采集使用15fps')
+    parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[2]/'data'/'nero_demos'/'red')
     parser.add_argument('--prompt', default=PROMPT)
     parser.add_argument('--feedback-source-confirmed', action='store_true', help='仅在已核实反馈来自从臂时填写')
     parser.add_argument('--feedback-source-note', default='未核实同总线反馈的物理来源')

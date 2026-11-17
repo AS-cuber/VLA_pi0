@@ -97,9 +97,8 @@ def check(folder):
     print('任务:', metadata['task'])
     print('人工结果标记:', summary['outcome'])
     if not metadata['feedback_source_confirmed']:
-        print('待核实：同总线反馈是否确实来自从臂。')
-    print('发现的问题:', list(dict.fromkeys(issues)) if issues else '本轮文件与接收时序初筛未发现问题')
-    print('仍需回看图像、确认物理来源和对齐；该检查不证明任务成功或适合直接训练。')
+        print('metadata.json: feedback_source_confirmed=False')
+    print('发现的问题:', list(dict.fromkeys(issues)) if issues else '无')
     return 1 if issues else 0
 
 

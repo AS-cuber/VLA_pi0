@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""旧独立机械臂的 USB-CAN 身份解析。当前主从总线请用根目录 nero_teleop_read.py。"""
+"""旧独立机械臂的 USB-CAN 身份解析。当前主从总线使用 scripts/acquisition/nero_teleop_read.py。"""
 from pathlib import Path
 
 # 保留原维护工具的独立机械臂身份，不自动改为主从共用总线。

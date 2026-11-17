@@ -6,13 +6,35 @@ import tempfile
 import unittest
 from unittest import mock
 
-from scripts.tools.organize_vla_wu import apply_plan, archive_matches, build_plan, digest
+from scripts.tools.organize_vla_wu import apply_plan, archive_matches, build_plan, digest, main
 
 
 TEMPLATES = Path(__file__).resolve().parents[2] / 'scripts/tools/vla_wu_templates'
 
 
 class LayoutTests(unittest.TestCase):
+    def test_index_only_writes_instructions_without_running_cleanup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.project(root)
+            installed = root / 'scripts/model/nero_batch.py'
+            installed.parent.mkdir(parents=True)
+            installed.write_text('"""Batch training entry."""\n')
+            cache = root / '__pycache__/keep.pyc'
+            cache.parent.mkdir()
+            cache.write_bytes(b'cache')
+            with mock.patch('sys.argv', ['organize', '--project', str(root), '--write-index']), \
+                    mock.patch('scripts.tools.organize_vla_wu.build_plan') as plan:
+                main()
+            plan.assert_not_called()
+            text = (root / 'docs/文件索引.md').read_text()
+            self.assertIn(f'nero_batch.py prepare --project {root} --dataset red_v1', text)
+            self.assertIn(f'cd {root} &&', text)
+            self.assertNotIn('\\n', text)
+            self.assertEqual(cache.read_bytes(), b'cache')
+            self.assertTrue((root / 'run_nero_pi0.py').is_file())
+            self.assertEqual((root / 'data/keep.bin').read_bytes(), b'original data')
+
     def project(self, root):
         (root / 'vendor/openpi').mkdir(parents=True)
         for name in ('nero_pi0_adapter.py', 'nero_pi0_config.py', 'prepare_nero_pi0.py', 'run_nero_pi0.py'):

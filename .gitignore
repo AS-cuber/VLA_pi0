@@ -1,6 +1,5 @@
 # 本地 Python 环境与可重新生成的产物
 .venv/
-.venv-sim/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -15,7 +14,8 @@ __pycache__/
 *.swo
 *~
 
-# 原始数据在 GitHub 中以 data/archive/ 的无损压缩分卷保存。
+# data/archive/ 保存黄色、红色全部原始示教及对齐数据的无损快照。
 # 本地原始数据保留；解压后不重复加入 Git。
 data/nero_demos/
-data/nero_aligned_v1/
+data/nero_aligned*/
+data/nero_lerobot*/

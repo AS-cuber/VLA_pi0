@@ -169,17 +169,46 @@ def prepare_episode(source, destination, fps, max_image_ms, max_can_ms):
     return report
 
 
+def select_episodes(input_root):
+    selected, excluded = [], []
+    for source in sorted(input_root.glob('episode_*')):
+        if not source.is_dir():
+            continue
+        summary = load_json(source / 'summary.json')
+        if summary['outcome'] == 'success_user_marked':
+            selected.append(source)
+        else:
+            excluded.append({'episode': source.name, 'outcome': summary['outcome']})
+    if len(selected) < 2:
+        raise ValueError('至少需要两条成功示教；--input 请指定 red 或 yellow 批次目录')
+    return selected, excluded
+
+
+def split_episodes(names, validation_count=None, seed=42):
+    if len(names) != len(set(names)):
+        raise ValueError('示教名称重复')
+    count = max(1, round(len(names) * .2)) if validation_count is None else validation_count
+    if not 1 <= count < len(names):
+        raise ValueError('验证示教数量必须至少为1，并保留至少1条训练示教')
+    shuffled = np.random.default_rng(seed).permutation(names).tolist()
+    return dict(seed=seed, train=sorted(shuffled[count:]), validation=sorted(shuffled[:count]),
+                unit='whole episode')
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     root=Path(__file__).resolve().parents[2]
-    parser.add_argument('--input',type=Path,default=root/'data/nero_demos')
-    parser.add_argument('--output',type=Path,default=root/'data/nero_aligned_v1')
+    parser.add_argument('--input',type=Path,default=root/'data/nero_demos/red')
+    parser.add_argument('--output',type=Path,default=root/'data/nero_aligned_red_v1')
+    parser.add_argument('--validation-count',type=int,help='按整条示教留出；默认约20%%')
+    parser.add_argument('--seed',type=int,default=42)
     args=parser.parse_args()
     if args.output.exists():
         parser.error('输出目录已存在，为避免覆盖请指定新的 --output')
-    episodes=sorted(p for p in args.input.glob('episode_*') if p.is_dir())
-    if len(episodes)!=10:
-        parser.error(f'本轮预期十条示教，实际 {len(episodes)} 条；请检查输入目录')
+    episodes, excluded = select_episodes(args.input)
+    split = split_episodes([p.name for p in episodes], args.validation_count, args.seed)
+    for item in excluded:
+        print(f'不用于训练：{item["episode"]} ({item["outcome"]})；原始记录保留',flush=True)
     args.output.mkdir(parents=True,exist_ok=False)
     write_json(args.output/'dataset_manifest.json',{'status':'building'})
     try:
@@ -188,12 +217,10 @@ def main():
             report=prepare_episode(source,args.output/source.name,15,100,50)
             reports.append(report)
             print(f'{source.name}: {report["frame_count"]} 帧；最大图像年龄 {report["max_image_age_ms"]:.1f}ms；最大 CAN 年龄 {report["max_can_age_ms"]:.1f}ms',flush=True)
-        names=[p.name for p in episodes]
-        shuffled=np.random.default_rng(42).permutation(names).tolist()
-        validation=sorted(shuffled[:2]);train=sorted(shuffled[2:])
-        write_json(args.output/'split.json',dict(seed=42,train=train,validation=validation,unit='whole episode'))
+        write_json(args.output/'split.json',split)
         write_json(args.output/'dataset_manifest.json',dict(status='alignment_prepared_not_lerobot',fps=15,
-                   feature_order=FEATURES,camera_order=ROLES,episode_count=10,
+                   feature_order=FEATURES,camera_order=ROLES,episode_count=len(episodes),
+                   raw_root=str(args.input.resolve()), excluded_episodes=excluded,
                    total_frames=sum(r['frame_count'] for r in reports),episodes=reports,
                    sampling='causal latest-at-or-before host receive timestamp; no interpolation; no action time shift',
                    action_semantics='absolute commanded joint positions (rad) and commanded gripper width (m)',
@@ -202,7 +229,7 @@ def main():
                    normalisation='not applied; compute training-only statistics after final OpenPI transforms; floor or bypass near-constant gripper scales',
                    limitation='host receipt alignment is not calibrated exposure/control latency alignment; fixed-scene pipeline test only',
                    split_file='split.json',portable_images=False))
-        print('完成:',args.output,'；训练 8 条，验证 2 条；原始数据未改动。',flush=True)
+        print(f'完成：{args.output}；训练 {len(split["train"])} 条，验证 {len(split["validation"])} 条',flush=True)
     except BaseException:
         write_json(args.output/'dataset_manifest.json',{'status':'incomplete_do_not_train'})
         raise
